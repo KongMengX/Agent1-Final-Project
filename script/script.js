@@ -1,11 +1,25 @@
-const canvas = document.getElementById("interactive-game");
+const canvas = document.getElementById("interactive-game"); //"links to canavas using the id"
 const ctx = canvas.getContext("2d");
 
-let x = 100; // Start location on x-axis
-let y = 100; // Start location on y-axis
-let speed = 0.7; // Speed of player
-let spriteSheet = new Image();
-spriteSheet.src = "images/lilmansprite.png"; // Ensure this path is correct
+let x = 350; // Start location on x-axis
+let y = 200; // Start location on y-axis
+let speed = 0.85; // Speed of player
+
+//Load different sprites
+let spriteIdle = new Image();
+spriteIdle.src = "images/spriteidle.png"
+let spriteRun = new Image();
+spriteRun.src = "images/spriterun.png"
+let spriteEye = new Image
+spriteEye.src = "images/spriteEye.png"
+
+//starting sprite for player
+let currentSprite = spriteIdle;
+
+//variables for highscore
+let startTime = 0; //timestamp for when player starts moving
+let elapsedTime = 0; //in miliseconds
+let highScore = 0; //variable to store highscore
 
 //Movement key variables
 let upPressed = false;
@@ -14,19 +28,21 @@ let leftPressed = false;
 let rightPressed = false;
 
 //player info variables
-let playerWidth = 100; // Desired width of the player image
+let playerWidth = 80; // Desired width of the player image
 let playerHeight = 100; // Desired height of the player image
 
 //frames info for spritesheet
 let frameIndex = 0;
-let frameCount = 3; // Number of frames in the sprite sheet
-let frameSpeed = 100; // 
+let frameCount = 2; // Number of frames in the sprite sheet
+let frameSpeed = 100; // speed of frame change (higher = slower)
 let frameInterval = 0;
 
-let frameWidth = 250;  // Example width of each frame
+let frameWidth = 275;  // Example width of each frame
 let frameHeight = 380; // Example height of each frame
 let currentFrame = 0; // Example: initialize current frame index
 
+
+//bullet(future enemies) info
 let bullets = []; // Array to hold bullets
 let bulletInterval = 0; // Interval to control bullet creation
 
@@ -41,18 +57,19 @@ let player = { //identify player info
   lives: 3, //defines how many lives the player has before game over
   update: function() {
     if (this.lives <=0) {
-      gameOver = true
+      gameOver = true;
+      elapsedTime = Date.now() - startTime; //calculate elapse time when game over
+      if (elapsedTime > highScore) {
+        highScore = elapsedTime;
+      }
     }
   }
 
 }
 
-spriteSheet.onload = function() { //loads player image when loading game
+spriteIdle.onload = function() { //loads player image when loading game
   drawGame();
 };
-
-
-
 
 function drawGame() {
   if (!gameOver) { 
@@ -61,12 +78,25 @@ function drawGame() {
       ctx.fillStyle = "red";
       ctx.font = "30px Arial";
       ctx.fillText("Game Over", canvas.width / 2 - 80, canvas.height / 2);
+      ctx.fillText("High Score: " + (highScore / 1000).toFixed(2) + "s", canvas.width / 2 - 120, canvas.height / 2 + 50);
+      // Display Play Again button
+      ctx.fillStyle = "white";
+      ctx.fillRect(canvas.width / 2 - 60, canvas.height / 2 + 100, 120, 40);
+      ctx.fillStyle = "black";
+      ctx.font = "24px Arial";
+      ctx.fillText("Play Again", canvas.width / 2 - 60, canvas.height / 2 + 128);
+      return; // Exit function to stop drawing
   }
+
+
   clearScreen();
   inputs();
   boundaryCheck();
   drawPlayer();
   runBullets(); // Run bullets within the draw loop
+  player.update();
+  drawLives();
+  drawTimer();
 }
 
 
@@ -95,6 +125,12 @@ function boundaryCheck() { //makes sure player does not "leave" the canvas
 }
 
 function inputs() {
+  if (!startTime){
+    if (upPressed || downPressed || leftPressed || rightPressed){
+      startTime = Date.now();
+    }
+  }
+  
   if (upPressed) {
     player.y -= speed;
   }
@@ -115,7 +151,7 @@ function drawPlayer() {
 
   // Draw the current frame of the sprite sheet
   ctx.drawImage(
-    spriteSheet,            // Image object containing the sprite sheet
+    currentSprite,            // Image object containing the sprite sheet
     currentFrame * frameWidth, // X coordinate of the frame in the sprite sheet
     0,                       // Y coordinate of the frame in the sprite sheet (assuming it's at the top)
     frameWidth,              // Width of the frame
@@ -142,20 +178,24 @@ function keyDown(event) {
   // W (Up)
   if (event.key === 'w') {
     upPressed = true;
+    currentSprite = spriteRun;
   }
 
   // S (Down)
   if (event.key === 's') {
     downPressed = true;
+    currentSprite = spriteRun;
   }
   // A (Left)
   if (event.key === 'a') {
     leftPressed = true;
+    currentSprite = spriteRun;
   }
 
   // D (Right)
   if (event.key === 'd') {
     rightPressed = true;
+    currentSprite = spriteRun;
   }
 }
 
@@ -163,77 +203,144 @@ function keyUp(event) {
   // W (Up)
   if (event.key === 'w') {
     upPressed = false;
+    currentSprite = spriteIdle;
   }
 
   // S (Down)
   if (event.key === 's') {
     downPressed = false;
+    currentSprite = spriteIdle;
   }
   // A (Left)
   if (event.key === 'a') {
     leftPressed = false;
+    currentSprite = spriteIdle;
   }
 
   // D (Right)
   if (event.key === 'd') {
     rightPressed = false;
+    currentSprite = spriteIdle;
   }
 }
+
+// Handle Play Again button click
+canvas.addEventListener("click", function(event) {
+  const rect = canvas.getBoundingClientRect();
+  const clickX = event.clientX - rect.left;
+  const clickY = event.clientY - rect.top;
+
+
+  // Check if click is inside the Play Again button area
+  if (clickX >= canvas.width / 2 - 60 && clickX <= canvas.width / 2 + 60 &&
+      clickY >= canvas.height / 2 + 100 && clickY <= canvas.height / 2 + 140) {
+      resetGame(); // Call resetGame function
+  }
+});
+
+
+function resetGame() {
+  // Reset all game variables
+  player.x = 100;
+  player.y = 100;
+  player.lives = 3;
+  player.hits = 0;
+  bullets = [];
+  bulletInterval = 0;
+  gameOver = false;
+  startTime = 0;
+  elapsedTime = 0;
+  frameSpeed = 50;
+  frameInterval = 0;
+
+
+  // Restart the game loop
+  requestAnimationFrame(drawGame);
+}
+
+// Function to draw remaining lives
+function drawLives() {
+  ctx.fillStyle = "white";
+  ctx.font = "20px Arial";
+  ctx.fillText("Lives: " + player.lives, 10, 60)
+}
+
+
 
 // Bullets
 class Bullet {
   constructor(x, y, speedX, speedY) {
     this.x = x;
     this.y = y;
-    this.width = 10;
-    this.height = 10;
+    this.width = 50; // Set enemy width
+    this.height = 50; // Set enemy height
+    this.frameWidth = 355;
+    this.frameHeight = 522;
     this.speedX = speedX;
     this.speedY = speedY;
+    this.frameSpeed = 50; //higher = slower
+    this.frameCount = 7;
+    this.frameIndex = 0;
+    this.frameInterval = 0;
   }
 
   update() {
     this.x += this.speedX;
     this.y += this.speedY;
+    this.frameInterval++;
+    if (this.frameInterval >= this.frameSpeed) {
+      this.frameIndex = (this.frameIndex + 1) % this.frameCount;
+      this.frameInterval = 0;
+    }
   }
 
   draw() {
-    ctx.fillStyle = "red";
-    ctx.fillRect(this.x, this.y, this.width, this.height);
+    ctx.drawImage(
+      spriteEye,
+      this.frameIndex * this.frameWidth,
+      0,
+      this.frameWidth,
+      this.frameHeight,
+      this.x,
+      this.y,
+      this.width,
+      this.height
+    );
   }
 }
-
 function runBullets() {
-  bulletInterval++;
-  if (bulletInterval % 375 === 0) { //Changes amount of bullets that appears (higher number = less bullets)
-    let y1 = Math.floor(Math.random() * (canvas.height - 0)) + 0;
-    let y2 = Math.floor(Math.random() * (canvas.height - 0)) + 0;
-    let x1 = Math.floor(Math.random() * (canvas.width - 0)) + 0;
-    let x2 = Math.floor(Math.random() * (canvas.width - 0)) + 0;
-    bullets.push(new Bullet(-10, y1, 0.5, 0));
-    bullets.push(new Bullet(canvas.width, y2, -0.5, 0));
-    bullets.push(new Bullet(x1, -10, 0, 0.5));
-    bullets.push(new Bullet(x2, canvas.height, 0, -0.5));
+  if (startTime > 0) {
+    bulletInterval++;
+    if (bulletInterval % 260 === 0) { //Changes amount of bullets that appears (higher number = less bullets)
+      let y1 = Math.floor(Math.random() * (canvas.height - 0)) + 0;
+      let y2 = Math.floor(Math.random() * (canvas.height - 0)) + 0;
+      let x1 = Math.floor(Math.random() * (canvas.width - 0)) + 0;
+      let x2 = Math.floor(Math.random() * (canvas.width - 0)) + 0;
+      bullets.push(new Bullet(-10, y1, 1, 0));
+      bullets.push(new Bullet(canvas.width, y2, -1, 0));
+      bullets.push(new Bullet(x1, -10, 0, 1));
+      bullets.push(new Bullet(x2, canvas.height, 0, -1));
   }
+}
 
   for (let i = 0; i < bullets.length; i++) {
     bullets[i].update();
     bullets[i].draw();
-    if (bullets[i] &&
-        bullets[i].x < -11 || bullets[i].x > 880 ||
-        bullets[i].y < -11 || bullets[i].y > 550) {
+    if (bullets[i].x < -11 || bullets[i].x > 880 || bullets[i].y < -11 || bullets[i].y > 550) {
         bullets.splice(i, 1);
-    }
-    if (collision(player, bullets[i])) {
+        i--; // Adjust index after splice
+    } else if (collision(player, bullets[i])) {
         player.lives--;
+        player.hits++;
         bullets.splice(i, 1);
-        i--;
-
-        if (player.lives <=0){
-          gameOver = true;
+        i--; // Adjust index after splice
+        if (player.hits >= 5) {
+            gameOver = true;
         }
-      }
     }
 }
+}
+
 
 // Collision
 function collision(first, second) {
@@ -245,6 +352,16 @@ function collision(first, second) {
       }
 }
 
+// Function to draw elapsed time
+function drawTimer() {
+  if (startTime > 0 && !gameOver) {
+      let currentTime = Date.now();
+      elapsedTime = currentTime - startTime;
+  }
+  ctx.fillStyle = "white";
+  ctx.font = "20px Arial";
+  ctx.fillText("Time: " + (elapsedTime / 1000).toFixed(2) + "s", 10, 30);
+}
 
 function runGame() {
   ctx.clearRect(0, 0, 880, 550);
